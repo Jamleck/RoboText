@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Attaches the Jira issue id from your branch to the commit message
+#
+# Setup
+# =======
+# 1. Add this file to $GITREPOSITORY/.git/hooks/prepare-commit-msg and mark it executable.
+# 2. `chmod a+x  $GITREPOSITORY/.git/hooks/prepare-commit-msg` to mark is as executable.
+#
+
+# Setup the issue id pattern
+ISSUE_ID_PATTERN="[A-Z0-9]+-[A-Z0-9]+"
+
+# Branches we wish to disable this hook for
+if [ -z "$BRANCHES_TO_SKIP" ]; then
+  BRANCHES_TO_SKIP=(master develop release test staging)
+fi
+
+# Get the current branch name and check if it is excluded
+BRANCH_NAME=$(git symbolic-ref --short HEAD)
+BRANCH_EXCLUDED=$(printf "%s\n" "${BRANCHES_TO_SKIP[@]}" | grep -c "^$BRANCH_NAME$")
+BRANCH_ISSUE_ID=$(git symbolic-ref --short HEAD | grep -Eo "${ISSUE_ID_PATTERN}")
+MESSAGE_ISSUE_ID=$(grep -E -o -m 1 "${ISSUE_ID_PATTERN}" $1)
+
+if [ -n "$MESSAGE_ISSUE_ID" ]; then
+  echo "Commit message has a Issue Id: ${MESSAGE_ISSUE_ID[0]}"
+elif [ -n "$BRANCH_NAME" ] &&  ! [[ $BRANCH_EXCLUDED -eq 1 ]]; then
+  sed -i.bak -e "1s/^/[$BRANCH_ISSUE_ID] /" $1
+elif  ! [[ $BRANCH_EXCLUDED -eq 1 ]]; then
+	echo "Issue Id could not be determined."
+fi
